@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nostr Passkey Demo Playground</title>
+  <link rel="stylesheet" href="style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <header>
+    <h1>Nostr Passkey Playground</h1>
+    <p>Secure client-side key storage leveraging WebAuthn PRF</p>
+  </header>
+
+  <main>
+    <!-- Card 1: Capability & Status -->
+    <section class="card" id="status-card">
+      <h2>Device status</h2>
+      <div class="grid-cols">
+        <div>
+          <label>WebAuthn PRF Support</label>
+          <span id="prf-support-badge" class="status-badge locked">Checking...</span>
+        </div>
+        <div>
+          <label>Stored Identity Status</label>
+          <span id="identity-status-badge" class="status-badge not-registered">No Identity</span>
+        </div>
+      </div>
+      <div id="identity-details" style="display: none; margin-top: 1.5rem;">
+        <div class="input-group">
+          <label>Registered Public Key</label>
+          <input type="text" id="stored-pubkey-display" readonly>
+        </div>
+        <div class="input-group">
+          <label>Credential ID</label>
+          <input type="text" id="stored-cred-display" readonly>
+        </div>
+      </div>
+    </section>
+
+    <!-- Card 2: Enroll & Setup -->
+    <section class="card" id="setup-card">
+      <h2>Enrolling & importing</h2>
+      <p style="color: var(--text-secondary); margin-bottom: 1.25rem; font-size: 0.9rem;">
+        Initialize a new Nostr key or import an existing nsec. This registers a passkey on your device.
+      </p>
+      
+      <div class="input-group">
+        <label>Optional nsec to Import (Leave blank to generate a new key)</label>
+        <input type="text" id="import-nsec-input" placeholder="nsec1... or 64-char hex key">
+      </div>
+
+      <div class="btn-row">
+        <button id="btn-register">Register Passkey</button>
+        <button id="btn-clear" class="danger" style="display: none;">Delete Identity</button>
+      </div>
+    </section>
+
+    <!-- Card 3: Use Signer -->
+    <section class="card" id="sign-card" style="display: none;">
+      <h2>Unlock & sign event</h2>
+      <p style="color: var(--text-secondary); margin-bottom: 1.25rem; font-size: 0.9rem;">
+        Unlock the private key into memory and sign a test Nostr event.
+      </p>
+
+      <div class="btn-row" style="margin-bottom: 1.5rem;">
+        <button id="btn-unlock" class="secondary">Unlock with Passkey</button>
+        <button id="btn-sign">Sign Test Event</button>
+      </div>
+
+      <div class="input-group">
+        <label>Signed Nostr Event Output</label>
+        <pre id="sign-output">// Event will display here after signing</pre>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    nostr-passkey &copy; 2026
+  </footer>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
