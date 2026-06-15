@@ -1,0 +1,61 @@
+{
+  "name": "nostr-passkey",
+  "version": "0.1.0",
+  "description": "Nostr authentication and key management using WebAuthn Passkeys PRF extension",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./applesauce": {
+      "types": "./dist/applesauce.d.ts",
+      "import": "./dist/applesauce.js",
+      "default": "./dist/applesauce.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "nostr",
+    "passkey",
+    "webauthn",
+    "prf",
+    "cryptography",
+    "security"
+  ],
+  "author": "",
+  "license": "MIT",
+  "peerDependencies": {
+    "applesauce-accounts": "^4.1.0",
+    "applesauce-signers": "^4.1.0",
+    "nostr-tools": "^2.0.0"
+  },
+  "peerDependenciesMeta": {
+    "applesauce-accounts": {
+      "optional": true
+    },
+    "applesauce-signers": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "applesauce-accounts": "^4.1.0",
+    "applesauce-signers": "^4.1.0",
+    "nostr-tools": "^2.18.2",
+    "tsup": "^8.1.0",
+    "typescript": "^5.4.5",
+    "vitest": "^1.6.0"
+  }
+}
