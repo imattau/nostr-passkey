@@ -35,8 +35,16 @@
     "cryptography",
     "security"
   ],
-  "author": "",
+  "author": "imattau",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/imattau/nostr-passkey.git"
+  },
+  "bugs": {
+    "url": "https://github.com/imattau/nostr-passkey/issues"
+  },
+  "homepage": "https://github.com/imattau/nostr-passkey#readme",
   "peerDependencies": {
     "applesauce-accounts": "^4.1.0",
     "applesauce-signers": "^4.1.0",
