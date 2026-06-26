@@ -1,6 +1,6 @@
 {
   "name": "nostr-passkey",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Nostr authentication and key management using WebAuthn Passkeys PRF extension",
   "type": "module",
   "main": "./dist/index.js",
@@ -48,7 +48,7 @@
   "peerDependencies": {
     "applesauce-accounts": "^6.2.0",
     "applesauce-signers": "^6.2.0",
-    "nostr-tools": "^2.0.0"
+    "nostr-tools": "^2.23.8"
   },
   "peerDependenciesMeta": {
     "applesauce-accounts": {

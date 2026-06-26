@@ -87,8 +87,8 @@ btnRegister.addEventListener('click', async () => {
     importNsecInput.value = '';
     updateIdentityStatus();
   } catch (err) {
-    alert("Registration failed: " + err.message);
-    console.error(err);
+    console.error("Registration failed:", err);
+    alert("An error occurred during registration. Check the console for details.");
   }
 });
 
@@ -106,8 +106,8 @@ btnUnlock.addEventListener('click', async () => {
     
     alert("Passkey unlocked. Decrypted key loaded in-memory!");
   } catch (err) {
-    alert("Unlock failed: " + err.message);
-    console.error(err);
+    console.error("Unlock failed:", err);
+    alert("An error occurred during unlock. Check the console for details.");
   }
 });
 
@@ -129,8 +129,8 @@ btnSign.addEventListener('click', async () => {
     const signedEvent = await activeSigner.signEvent(template);
     signOutput.textContent = JSON.stringify(signedEvent, null, 2);
   } catch (err) {
-    alert("Signing failed: " + err.message);
-    console.error(err);
+    console.error("Signing failed:", err);
+    alert("An error occurred during signing. Check the console for details.");
   }
 });
 

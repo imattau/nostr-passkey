@@ -4,6 +4,7 @@ import {
   hexToBytes,
   isPRFSupported,
   registerPasskeyIdentity,
+  importPasskeyIdentityFromNsec,
   unlockPasskeyIdentity,
   hasStoredPasskeyIdentity,
   getStoredPasskeyPubkey,
@@ -173,6 +174,115 @@ describe("nostr-passkey core", () => {
       // Cleanup
       clearPasskeyIdentity({ storageKey: "test_passkey" });
       expect(hasStoredPasskeyIdentity({ storageKey: "test_passkey" })).toBe(false);
+    });
+  });
+
+  describe("Security", () => {
+    beforeEach(() => {
+      const mockCredentials = {
+        create: vi.fn(),
+        get: vi.fn(),
+      };
+      Object.defineProperty(globalThis, "navigator", {
+        value: { credentials: mockCredentials },
+        configurable: true,
+        writable: true,
+      });
+      Object.defineProperty(globalThis, "PublicKeyCredential", {
+        value: class {},
+        configurable: true,
+        writable: true,
+      });
+    });
+
+    it("rejects nsec input that exceeds maximum length", async () => {
+      const longInput = "0".repeat(257);
+      await expect(importPasskeyIdentityFromNsec(longInput)).rejects.toThrow("Input exceeds maximum length.");
+    });
+
+    it("rejects hex input that exceeds maximum length", async () => {
+      const longHex = "a".repeat(257);
+      await expect(importPasskeyIdentityFromNsec(longHex)).rejects.toThrow("Input exceeds maximum length.");
+    });
+
+    it("destroyed shim rejects all operations", async () => {
+      const key = new Uint8Array(32).fill(42);
+      const shim = buildPasskeySignerShim(key);
+
+      shim.destroy();
+
+      await expect(shim.getPublicKey()).rejects.toThrow("Signer has been destroyed.");
+      await expect(shim.signEvent({ kind: 1, content: "", tags: [], created_at: 0 })).rejects.toThrow("Signer has been destroyed.");
+      await expect(shim.nip04.encrypt("a".repeat(64), "hello")).rejects.toThrow("Signer has been destroyed.");
+      await expect(shim.nip04.decrypt("a".repeat(64), "hello")).rejects.toThrow("Signer has been destroyed.");
+      await expect(shim.nip44.encrypt("a".repeat(64), "hello")).rejects.toThrow("Signer has been destroyed.");
+      await expect(shim.nip44.decrypt("a".repeat(64), "hello")).rejects.toThrow("Signer has been destroyed.");
+    });
+
+    it("destroy zeroes the underlying key buffer", () => {
+      const key = new Uint8Array([1, 2, 3, 4]);
+      const shim = buildPasskeySignerShim(key);
+      shim.destroy();
+      // The original buffer should be zeroed
+      expect(Array.from(key)).toEqual([0, 0, 0, 0]);
+    });
+
+    it("tampered stored pubkey fails unlock verification", async () => {
+      const prfKey = new Uint8Array(32).fill(1);
+
+      // Register
+      const mockCred = {
+        rawId: new Uint8Array([1, 2, 3]).buffer,
+        getClientExtensionResults: () => ({
+          prf: { results: { first: prfKey.buffer } },
+        }),
+      };
+      (navigator.credentials.create as any).mockResolvedValue(mockCred);
+
+      const result = await registerPasskeyIdentity({ storageKey: "test_tamper" });
+
+      // Tamper with stored pubkey
+      const stored = JSON.parse(localStorage.getItem("test_tamper")!);
+      stored.pubkey = "a".repeat(64);
+      localStorage.setItem("test_tamper", JSON.stringify(stored));
+
+      // Mock unlock - same PRF result but pubkey won't match decrypted key
+      const mockAssertion = {
+        getClientExtensionResults: () => ({
+          prf: { results: { first: prfKey.buffer } },
+        }),
+      };
+      (navigator.credentials.get as any).mockResolvedValue(mockAssertion);
+
+      await expect(unlockPasskeyIdentity(undefined, { storageKey: "test_tamper" })).rejects.toThrow("Passkey identity mismatch.");
+
+      clearPasskeyIdentity({ storageKey: "test_tamper" });
+    });
+
+    it("stored record is v2 format with all security fields", async () => {
+      const prfKey = new Uint8Array(32).fill(1);
+      const mockCred = {
+        rawId: new Uint8Array([4, 5, 6]).buffer,
+        getClientExtensionResults: () => ({
+          prf: { results: { first: prfKey.buffer } },
+        }),
+      };
+      (navigator.credentials.create as any).mockResolvedValue(mockCred);
+
+      await registerPasskeyIdentity({ storageKey: "test_format" });
+
+      const stored = JSON.parse(localStorage.getItem("test_format")!);
+      expect(stored.version).toBe(2);
+      expect(typeof stored.salt).toBe("string");
+      expect(stored.salt.length).toBeGreaterThan(0);
+      expect(typeof stored.rpId).toBe("string");
+      expect(stored.rpId.length).toBeGreaterThan(0);
+      expect(typeof stored.credentialId).toBe("string");
+      expect(typeof stored.encryptedNsec).toBe("string");
+      expect(typeof stored.pubkey).toBe("string");
+      expect(stored.pubkey).toMatch(/^[0-9a-fA-F]{64}$/);
+
+      clearPasskeyIdentity({ storageKey: "test_format" });
     });
   });
 });

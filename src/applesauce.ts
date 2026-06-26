@@ -24,8 +24,9 @@ export class PasskeySigner implements ISigner {
   options?: PasskeyIdentityOptions;
   nip04: ISigner["nip04"];
   nip44: ISigner["nip44"];
+  private autoLockTimer: ReturnType<typeof setTimeout> | undefined;
 
-  constructor(record: PasskeyIdentityRecord, key?: Uint8Array, options?: PasskeyIdentityOptions) {
+  constructor(record: PasskeyIdentityRecord, key?: Uint8Array, options?: PasskeyIdentityOptions, autoLockTimeoutMs?: number) {
     this.record = record;
     this.key = key ?? null;
     this.options = options;
@@ -37,14 +38,33 @@ export class PasskeySigner implements ISigner {
       encrypt: (pubkey: string, plaintext: string) => this.nip44Encrypt(pubkey, plaintext),
       decrypt: (pubkey: string, ciphertext: string) => this.nip44Decrypt(pubkey, ciphertext),
     };
+    if (key && autoLockTimeoutMs !== undefined) {
+      this.scheduleAutoLock(autoLockTimeoutMs);
+    }
   }
 
   get unlocked(): boolean {
     return this.key !== null;
   }
 
+  private scheduleAutoLock(timeoutMs: number): void {
+    this.clearAutoLock();
+    this.autoLockTimer = setTimeout(() => this.clearKey(), timeoutMs);
+  }
+
+  private clearAutoLock(): void {
+    if (this.autoLockTimer !== undefined) {
+      clearTimeout(this.autoLockTimer);
+      this.autoLockTimer = undefined;
+    }
+  }
+
   clearKey(): void {
+    if (this.key) {
+      this.key.fill(0);
+    }
     this.key = null;
+    this.clearAutoLock();
   }
 
   async unlock(): Promise<void> {
