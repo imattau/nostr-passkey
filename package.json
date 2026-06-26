@@ -1,6 +1,6 @@
 {
   "name": "nostr-passkey",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Nostr authentication and key management using WebAuthn Passkeys PRF extension",
   "type": "module",
   "main": "./dist/index.js",
