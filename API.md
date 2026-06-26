@@ -39,6 +39,13 @@ Prompts the browser to verify the passkey (via FaceID/TouchID/PIN) and decrypts 
   - `options?: PasskeyIdentityOptions`
 - **Returns**: `Promise<PasskeyIdentityResult>`
 
+#### `exportPasskeyIdentityAsNsec(record?, options?)`
+Decrypts the stored Nostr key (requiring biometric authorization) and returns it encoded as a standard Bech32 `nsec` string.
+- **Parameters**:
+  - `record?: PasskeyIdentityRecord` - Optional custom record to decrypt. If omitted, the function reads from `localStorage`.
+  - `options?: PasskeyIdentityOptions`
+- **Returns**: `Promise<string>`
+
 #### `buildPasskeySignerShim(secretKey)`
 Returns a standard NIP-07-compliant signer shim wrapper that holds the decrypted key in-memory.
 - **Parameters**:

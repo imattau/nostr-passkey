@@ -1,5 +1,5 @@
 import { generateSecretKey, getPublicKey, finalizeEvent, type EventTemplate, type Event } from "nostr-tools/pure";
-import { decode } from "nostr-tools/nip19";
+import { decode, nsecEncode } from "nostr-tools/nip19";
 import { encrypt as nip04Encrypt, decrypt as nip04Decrypt } from "nostr-tools/nip04";
 import { encrypt as nip44Encrypt, decrypt as nip44Decrypt, getConversationKey } from "nostr-tools/nip44";
 
@@ -272,6 +272,14 @@ export async function unlockPasskeyIdentity(
   }
 
   return { secretKey, pubkey: stored.pubkey, record: stored };
+}
+
+export async function exportPasskeyIdentityAsNsec(
+  record?: PasskeyIdentityRecord,
+  options?: PasskeyIdentityOptions
+): Promise<string> {
+  const { secretKey } = await unlockPasskeyIdentity(record, options);
+  return nsecEncode(secretKey);
 }
 
 export interface PasskeySignerShim {

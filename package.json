@@ -1,6 +1,6 @@
 {
   "name": "nostr-passkey",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Nostr authentication and key management using WebAuthn Passkeys PRF extension",
   "type": "module",
   "main": "./dist/index.js",
@@ -46,8 +46,8 @@
   },
   "homepage": "https://github.com/imattau/nostr-passkey#readme",
   "peerDependencies": {
-    "applesauce-accounts": "^4.1.0",
-    "applesauce-signers": "^4.1.0",
+    "applesauce-accounts": "^6.2.0",
+    "applesauce-signers": "^6.2.0",
     "nostr-tools": "^2.0.0"
   },
   "peerDependenciesMeta": {
@@ -59,11 +59,12 @@
     }
   },
   "devDependencies": {
-    "applesauce-accounts": "^4.1.0",
-    "applesauce-signers": "^4.1.0",
-    "nostr-tools": "^2.18.2",
+    "@types/node": "^26.0.1",
+    "applesauce-accounts": "^6.2.0",
+    "applesauce-signers": "^6.2.0",
+    "nostr-tools": "^2.23.8",
     "tsup": "^8.1.0",
-    "typescript": "^5.4.5",
-    "vitest": "^1.6.0"
+    "typescript": "^6.0.0",
+    "vitest": "^4.1.0"
   }
 }

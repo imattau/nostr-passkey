@@ -11,6 +11,7 @@ import {
   buildPasskeySignerShim,
   isPasskeyShim,
   DEFAULT_STORAGE_KEY,
+  exportPasskeyIdentityAsNsec,
 } from "./index.js";
 
 // Mock localStorage
@@ -79,14 +80,14 @@ describe("nostr-passkey core", () => {
   });
 
   describe("WebAuthn Support Check", () => {
-    it("returns false if navigator is not defined", () => {
+    it("returns false if navigator is not defined", async () => {
       const originalNavigator = globalThis.navigator;
       Object.defineProperty(globalThis, "navigator", {
         value: undefined,
         configurable: true,
       });
 
-      expect(isPRFSupported()).resolves.toBe(false);
+      await expect(isPRFSupported()).resolves.toBe(false);
 
       Object.defineProperty(globalThis, "navigator", {
         value: originalNavigator,
@@ -158,6 +159,11 @@ describe("nostr-passkey core", () => {
       const unlocked = await unlockPasskeyIdentity(undefined, { storageKey: "test_passkey" });
       expect(unlocked.pubkey).toBe(result.pubkey);
       expect(unlocked.secretKey).toEqual(result.secretKey);
+
+      // Export as nsec
+      const exportedNsec = await exportPasskeyIdentityAsNsec(undefined, { storageKey: "test_passkey" });
+      expect(exportedNsec).toBeTypeOf("string");
+      expect(exportedNsec.startsWith("nsec1")).toBe(true);
 
       // Verify signers
       const shim = buildPasskeySignerShim(unlocked.secretKey);
