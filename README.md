@@ -18,7 +18,7 @@ npm install nostr-passkey nostr-tools
 
 ## Core Features
 - **Zero-Password Login**: Derives symmetric encryption keys directly from your authenticator chip using the WebAuthn PRF extension.
-- **In-Memory Signers**: Decrypts the private key on-demand into memory; the decrypted key is never written to disk and is wiped on page refresh.
+- **In-Memory Signers**: Decrypts the private key on-demand into memory; the decrypted key is never written to disk, can be proactively zeroed via `destroy()`, and is wiped on page refresh.
 - **NIP-07 Shim**: Exports a standard NIP-07 (`window.nostr`) shim to easily drop into existing applications.
 - **Applesauce Integration**: Native adapters for `applesauce-accounts` (`PasskeyAccount` and `PasskeySigner`).
 
@@ -68,6 +68,9 @@ const { secretKey, pubkey } = await unlockPasskeyIdentity();
 // Build a standard window.nostr shim
 const nostrSigner = buildPasskeySignerShim(secretKey);
 window.nostr = nostrSigner;
+
+// When done, zero the key from memory
+nostrSigner.destroy();
 ```
 
 ---
