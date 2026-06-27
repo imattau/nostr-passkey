@@ -284,5 +284,91 @@ describe("nostr-passkey core", () => {
 
       clearPasskeyIdentity({ storageKey: "test_format" });
     });
+
+    it("uses custom storage backend", async () => {
+      const prfKey = new Uint8Array(32).fill(1);
+      const mockCred = {
+        rawId: new Uint8Array([7, 8, 9]).buffer,
+        getClientExtensionResults: () => ({
+          prf: { results: { first: prfKey.buffer } },
+        }),
+      };
+      (navigator.credentials.create as any).mockResolvedValue(mockCred);
+
+      const customStore: Record<string, string> = {};
+      const storage = {
+        getItem: (key: string) => customStore[key] ?? null,
+        setItem: (key: string, value: string) => { customStore[key] = value; },
+        removeItem: (key: string) => { delete customStore[key]; },
+      };
+
+      const result = await registerPasskeyIdentity({ storageKey: "custom_key", storage });
+
+      // Should NOT be in localStorage
+      expect(localStorage.getItem("custom_key")).toBeNull();
+      // Should be in custom store
+      expect(customStore["custom_key"]).toBeDefined();
+
+      const parsed = JSON.parse(customStore["custom_key"]!);
+      expect(parsed.version).toBe(2);
+      expect(parsed.pubkey).toBe(result.pubkey);
+
+      // Unlock with custom storage
+      const mockAssertion = {
+        getClientExtensionResults: () => ({
+          prf: { results: { first: prfKey.buffer } },
+        }),
+      };
+      (navigator.credentials.get as any).mockResolvedValue(mockAssertion);
+
+      const unlocked = await unlockPasskeyIdentity(undefined, { storageKey: "custom_key", storage });
+      expect(unlocked.pubkey).toBe(result.pubkey);
+
+      // Clear with custom storage
+      clearPasskeyIdentity({ storageKey: "custom_key", storage });
+      expect(customStore["custom_key"]).toBeUndefined();
+    });
+
+    it("migrates v1 record to v2 on unlock", async () => {
+      const prfKey = new Uint8Array(32).fill(99);
+      const secretKey = new Uint8Array(32).fill(88);
+      const { getPublicKey } = await import("nostr-tools/pure");
+      const pubkey = getPublicKey(secretKey);
+      const nsecHex = Array.from(secretKey, (b) => b.toString(16).padStart(2, "0")).join("");
+
+      // Create a proper v1 NIP-44 encrypted nsec using the PRF key
+      const { encrypt: nip44Encrypt } = await import("nostr-tools/nip44");
+      const encryptedNsec = nip44Encrypt(nsecHex, prfKey);
+
+      const v1Record = {
+        version: 1,
+        credentialId: "dGVzdC12MS1jcmVk",
+        encryptedNsec,
+        pubkey,
+      };
+
+      localStorage.setItem("test_migration", JSON.stringify(v1Record));
+
+      // Mock get with the same PRF key plus a new v2 key
+      const mockAssertion = {
+        getClientExtensionResults: () => ({
+          prf: { results: { first: prfKey.buffer, second: prfKey.buffer } },
+        }),
+      };
+      (navigator.credentials.get as any).mockResolvedValue(mockAssertion);
+
+      const unlocked = await unlockPasskeyIdentity(undefined, { storageKey: "test_migration" });
+
+      // Check stored record is now v2
+      const afterMigration = JSON.parse(localStorage.getItem("test_migration")!);
+      expect(afterMigration.version).toBe(2);
+      expect(typeof afterMigration.salt).toBe("string");
+      expect(afterMigration.salt.length).toBeGreaterThan(0);
+      expect(typeof afterMigration.rpId).toBe("string");
+      expect(afterMigration.pubkey).toBe(pubkey);
+      expect(unlocked.pubkey).toBe(pubkey);
+
+      clearPasskeyIdentity({ storageKey: "test_migration" });
+    });
   });
 });

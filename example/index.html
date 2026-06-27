@@ -1,87 +1,86 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self';">
-  <title>Nostr Passkey Demo Playground</title>
-  <link rel="stylesheet" href="style.css">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>nostr-passkey Demo</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; color: #1a1a1a; padding: 2rem; line-height: 1.5; }
+    .container { max-width: 640px; margin: 0 auto; }
+    h1 { font-size: 1.5rem; margin-bottom: 0.25rem; }
+    p.subtitle { color: #666; margin-bottom: 1.5rem; }
+    .card { background: #fff; border-radius: 8px; padding: 1.25rem; margin-bottom: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .card h2 { font-size: 1rem; margin-bottom: 0.75rem; }
+    .status-badge { display: inline-block; padding: 0.2rem 0.6rem; border-radius: 4px; font-size: 0.8rem; font-weight: 600; }
+    .status-badge.unlocked { background: #d4edda; color: #155724; }
+    .status-badge.locked { background: #fff3cd; color: #856404; }
+    .status-badge.not-registered { background: #f8d7da; color: #721c24; }
+    .row { display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; margin-bottom: 0.5rem; }
+    label { font-weight: 600; font-size: 0.85rem; min-width: 100px; }
+    input[type="text"], input[type="text"]:disabled { flex: 1; padding: 0.4rem 0.6rem; border: 1px solid #ccc; border-radius: 4px; font-family: monospace; font-size: 0.8rem; background: #fafafa; }
+    input[type="text"]:disabled { color: #888; }
+    .btn { padding: 0.5rem 1rem; border: none; border-radius: 4px; font-size: 0.85rem; cursor: pointer; font-weight: 600; }
+    .btn-primary { background: #6c5ce7; color: #fff; }
+    .btn-primary:hover { background: #5a4bd1; }
+    .btn-danger { background: #e74c3c; color: #fff; }
+    .btn-danger:hover { background: #c0392b; }
+    .btn-success { background: #27ae60; color: #fff; }
+    .btn-success:hover { background: #219a52; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    pre { background: #f0f0f0; padding: 0.75rem; border-radius: 4px; font-size: 0.75rem; overflow-x: auto; white-space: pre-wrap; word-break: break-all; }
+  </style>
 </head>
 <body>
+  <div class="container">
+    <h1>nostr-passkey Demo</h1>
+    <p class="subtitle">WebAuthn PRF-backed Nostr key management</p>
 
-  <header>
-    <h1>Nostr Passkey Playground</h1>
-    <p>Secure client-side key storage leveraging WebAuthn PRF</p>
-  </header>
-
-  <main>
-    <!-- Card 1: Capability & Status -->
-    <section class="card" id="status-card">
-      <h2>Device status</h2>
-      <div class="grid-cols">
-        <div>
-          <label>WebAuthn PRF Support</label>
-          <span id="prf-support-badge" class="status-badge locked">Checking...</span>
-        </div>
-        <div>
-          <label>Stored Identity Status</label>
-          <span id="identity-status-badge" class="status-badge not-registered">No Identity</span>
-        </div>
+    <div class="card">
+      <h2>Browser Support</h2>
+      <div class="row">
+        <span>PRF Extension:</span>
+        <span id="prf-support-badge" class="status-badge">Checking...</span>
       </div>
-      <div id="identity-details" style="display: none; margin-top: 1.5rem;">
-        <div class="input-group">
-          <label>Registered Public Key</label>
-          <input type="text" id="stored-pubkey-display" readonly>
+    </div>
+
+    <div class="card">
+      <h2>Identity</h2>
+      <div class="row">
+        <span>Status:</span>
+        <span id="identity-status-badge" class="status-badge">Checking...</span>
+      </div>
+      <div id="identity-details" style="display:none; margin-top: 0.75rem;">
+        <div class="row">
+          <label>Public Key</label>
+          <input type="text" id="stored-pubkey-display" readonly />
         </div>
-        <div class="input-group">
+        <div class="row">
           <label>Credential ID</label>
-          <input type="text" id="stored-cred-display" readonly>
+          <input type="text" id="stored-cred-display" readonly />
         </div>
       </div>
-    </section>
+    </div>
 
-    <!-- Card 2: Enroll & Setup -->
-    <section class="card" id="setup-card">
-      <h2>Enrolling & importing</h2>
-      <p style="color: var(--text-secondary); margin-bottom: 1.25rem; font-size: 0.9rem;">
-        Initialize a new Nostr key or import an existing nsec. This registers a passkey on your device.
-      </p>
-      
-      <div class="input-group">
-        <label>Optional nsec to Import (Leave blank to generate a new key)</label>
-        <input type="text" id="import-nsec-input" placeholder="nsec1... or 64-char hex key">
+    <div class="card">
+      <h2>Register or Import</h2>
+      <div class="row">
+        <input type="text" id="import-nsec-input" placeholder="Paste nsec1... to import, or leave blank to generate" />
+        <button id="btn-register" class="btn btn-primary">Register/Import</button>
       </div>
+      <button id="btn-clear" class="btn btn-danger" style="display:none;">Delete Identity</button>
+    </div>
 
-      <div class="btn-row">
-        <button id="btn-register">Register Passkey</button>
-        <button id="btn-clear" class="danger" style="display: none;">Delete Identity</button>
+    <div class="card" id="sign-card" style="display:none;">
+      <h2>Sign Events</h2>
+      <div class="row">
+        <button id="btn-unlock" class="btn btn-primary">Unlock Passkey</button>
+        <button id="btn-sign" class="btn btn-success" style="display:none;">Sign Test Event</button>
       </div>
-    </section>
+      <pre id="sign-output"></pre>
+    </div>
+  </div>
 
-    <!-- Card 3: Use Signer -->
-    <section class="card" id="sign-card" style="display: none;">
-      <h2>Unlock & sign event</h2>
-      <p style="color: var(--text-secondary); margin-bottom: 1.25rem; font-size: 0.9rem;">
-        Unlock the private key into memory and sign a test Nostr event.
-      </p>
-
-      <div class="btn-row" style="margin-bottom: 1.5rem;">
-        <button id="btn-unlock" class="secondary">Unlock with Passkey</button>
-        <button id="btn-sign">Sign Test Event</button>
-      </div>
-
-      <div class="input-group">
-        <label>Signed Nostr Event Output</label>
-        <pre id="sign-output">// Event will display here after signing</pre>
-      </div>
-    </section>
-  </main>
-
-  <footer>
-    nostr-passkey &copy; 2026
-  </footer>
-
-  <script type="module" src="app.js"></script>
+  <script type="module" src="./app.js"></script>
 </body>
 </html>

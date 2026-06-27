@@ -101,5 +101,21 @@ if (account) {
 
 ---
 
+## Running the Example
+
+A working example app is available in the `example/` directory:
+
+```bash
+# Build the library first
+npm run build
+
+# Serve the example directory
+npx serve example
+```
+
+Open the URL printed by `serve` (typically `http://localhost:3000`). The demo lets you register a new passkey identity, import an existing `nsec`, unlock, and sign test events.
+
+---
+
 ## License
 MIT

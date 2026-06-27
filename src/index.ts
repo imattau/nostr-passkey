@@ -4,7 +4,6 @@ import { encrypt as nip04Encrypt, decrypt as nip04Decrypt } from "nostr-tools/ni
 import { encrypt as nip44Encrypt, decrypt as nip44Decrypt, getConversationKey } from "nostr-tools/nip44";
 
 export const DEFAULT_STORAGE_KEY = "nostr_passkey_identity";
-export const DEFAULT_PRF_SALT_STRING = "nostr-passkey-nsec-v1";
 
 const PRF_CONTEXT_V2 = "nostr-passkey-nsec-v2";
 const AES_INFO_STRING = "nostr-passkey-aes-key";
@@ -39,17 +38,23 @@ export interface PasskeyIdentityResult {
   record: PasskeyIdentityRecord;
 }
 
+export interface PasskeyStorage {
+  getItem(key: string): string | null;
+  setItem(key: string, value: string): void;
+  removeItem(key: string): void;
+}
+
 export interface PasskeyIdentityOptions {
   rpName?: string;
   rpId?: string;
   userName?: string;
   displayName?: string;
   storageKey?: string;
-  /** @deprecated Only used for v1 record migration. v2 uses a per-record random salt. */
-  prfSalt?: Uint8Array;
-  /** @deprecated Only used for v1 record migration. v2 uses a per-record random salt. */
-  prfSaltString?: string;
+  storage?: PasskeyStorage;
+  autoLockTimeout?: number;
 }
+
+const PASSKEY_BRAND = Symbol.for("nostr-passkey");
 
 export interface PasskeySignerShim {
   getPublicKey: () => Promise<string>;
@@ -63,7 +68,6 @@ export interface PasskeySignerShim {
     decrypt: (pubkey: string, ciphertext: string) => Promise<string>;
   };
   destroy: () => void;
-  __nostrPasskey: true;
 }
 
 /* Internal PRF extension types (not in standard TS lib) */
@@ -109,7 +113,9 @@ export function hexToBytes(hex: string): Uint8Array {
 }
 
 function zeroBytes(bytes: Uint8Array): void {
-  bytes.fill(0);
+  for (let i = 0; i < bytes.length; i++) {
+    bytes[i] = 0;
+  }
 }
 
 function concatBytes(a: Uint8Array, b: Uint8Array): Uint8Array {
@@ -141,16 +147,6 @@ function base64UrlToArrayBuffer(value: string): ArrayBuffer {
     bytes[i] = binary.charCodeAt(i);
   }
   return bytes.buffer;
-}
-
-/* ------------------------------------------------------------------ */
-/*  v1 PRF salt (kept for migration)                                  */
-/* ------------------------------------------------------------------ */
-
-async function getPrfSalt(options?: PasskeyIdentityOptions): Promise<Uint8Array> {
-  if (options?.prfSalt) return options.prfSalt;
-  const str = options?.prfSaltString || DEFAULT_PRF_SALT_STRING;
-  return sha256(asBuffer(new TextEncoder().encode(str)));
 }
 
 /* ------------------------------------------------------------------ */
@@ -225,7 +221,8 @@ function isValidRecord(value: unknown): value is PasskeyIdentityRecord {
 export function readStoredPasskeyIdentity(options?: PasskeyIdentityOptions): PasskeyIdentityRecord | null {
   if (typeof window === "undefined") return null;
   const key = options?.storageKey || DEFAULT_STORAGE_KEY;
-  const stored = localStorage.getItem(key);
+  const store = options?.storage ?? localStorage;
+  const stored = store.getItem(key);
   if (!stored) return null;
   try {
     const parsed = JSON.parse(stored);
@@ -247,7 +244,8 @@ export function getStoredPasskeyPubkey(options?: PasskeyIdentityOptions): string
 export function clearPasskeyIdentity(options?: PasskeyIdentityOptions): void {
   if (typeof window !== "undefined") {
     const key = options?.storageKey || DEFAULT_STORAGE_KEY;
-    localStorage.removeItem(key);
+    const store = options?.storage ?? localStorage;
+    store.removeItem(key);
   }
 }
 
@@ -395,7 +393,8 @@ async function persistPasskeyIdentityV2(
     rpId,
   };
   const key = options?.storageKey || DEFAULT_STORAGE_KEY;
-  localStorage.setItem(key, JSON.stringify(record));
+  const store = options?.storage ?? localStorage;
+  store.setItem(key, JSON.stringify(record));
   return { secretKey, pubkey, record };
 }
 
@@ -423,7 +422,7 @@ async function unlockV1(
   stored: PasskeyIdentityRecordV1,
   options?: PasskeyIdentityOptions
 ): Promise<PasskeyIdentityResult> {
-  const oldPrfInput = await getPrfSalt(options);
+  const oldPrfInput = await sha256(asBuffer(new TextEncoder().encode("nostr-passkey-nsec-v1")));
   const credentialIdBytes = base64UrlToArrayBuffer(stored.credentialId);
   const rpId = options?.rpId || (typeof location !== "undefined" ? location.hostname : "localhost");
 
@@ -466,7 +465,8 @@ async function unlockV1(
       rpId,
     };
     const key = options?.storageKey || DEFAULT_STORAGE_KEY;
-    localStorage.setItem(key, JSON.stringify(v2Record));
+    const store = options?.storage ?? localStorage;
+    store.setItem(key, JSON.stringify(v2Record));
     return { secretKey, pubkey: stored.pubkey, record: v2Record };
   }
 
@@ -544,7 +544,7 @@ export function buildPasskeySignerShim(secretKey: Uint8Array): PasskeySignerShim
   const requireAlive = (): void => {
     if (destroyed) throw new Error("Signer has been destroyed.");
   };
-  return {
+  const shim: PasskeySignerShim = {
     getPublicKey: async () => {
       requireAlive();
       return getPublicKey(secretKey);
@@ -577,8 +577,9 @@ export function buildPasskeySignerShim(secretKey: Uint8Array): PasskeySignerShim
       zeroBytes(secretKey);
       destroyed = true;
     },
-    __nostrPasskey: true,
   };
+  (shim as unknown as Record<symbol, true>)[PASSKEY_BRAND] = true;
+  return shim;
 }
 
 /* ------------------------------------------------------------------ */
@@ -586,5 +587,5 @@ export function buildPasskeySignerShim(secretKey: Uint8Array): PasskeySignerShim
 /* ------------------------------------------------------------------ */
 
 export function isPasskeyShim(value: unknown): value is PasskeySignerShim {
-  return !!value && typeof value === "object" && (value as { __nostrPasskey?: unknown }).__nostrPasskey === true;
+  return !!value && typeof value === "object" && (value as Record<symbol, unknown>)[PASSKEY_BRAND] === true;
 }

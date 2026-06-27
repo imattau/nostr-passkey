@@ -18,6 +18,12 @@ import {
   unlockPasskeyIdentity,
 } from "./index.js";
 
+export interface PasskeySignerOptions {
+  key?: Uint8Array;
+  options?: PasskeyIdentityOptions;
+  autoLockTimeoutMs?: number;
+}
+
 export class PasskeySigner implements ISigner {
   key: Uint8Array | null;
   record: PasskeyIdentityRecord;
@@ -26,10 +32,10 @@ export class PasskeySigner implements ISigner {
   nip44: ISigner["nip44"];
   private autoLockTimer: ReturnType<typeof setTimeout> | undefined;
 
-  constructor(record: PasskeyIdentityRecord, key?: Uint8Array, options?: PasskeyIdentityOptions, autoLockTimeoutMs?: number) {
+  constructor(record: PasskeyIdentityRecord, opts?: PasskeySignerOptions) {
     this.record = record;
-    this.key = key ?? null;
-    this.options = options;
+    this.key = opts?.key ?? null;
+    this.options = opts?.options;
     this.nip04 = {
       encrypt: (pubkey: string, plaintext: string) => this.nip04Encrypt(pubkey, plaintext),
       decrypt: (pubkey: string, ciphertext: string) => this.nip04Decrypt(pubkey, ciphertext),
@@ -38,8 +44,9 @@ export class PasskeySigner implements ISigner {
       encrypt: (pubkey: string, plaintext: string) => this.nip44Encrypt(pubkey, plaintext),
       decrypt: (pubkey: string, ciphertext: string) => this.nip44Decrypt(pubkey, ciphertext),
     };
-    if (key && autoLockTimeoutMs !== undefined) {
-      this.scheduleAutoLock(autoLockTimeoutMs);
+    const autoLock = opts?.autoLockTimeoutMs ?? opts?.options?.autoLockTimeout;
+    if (this.key && autoLock !== undefined) {
+      this.scheduleAutoLock(autoLock);
     }
   }
 
@@ -149,8 +156,7 @@ export class PasskeyAccount<Metadata extends unknown = unknown> extends BaseAcco
         encryptedNsec: json.signer.encryptedNsec,
         pubkey: json.pubkey,
       },
-      undefined,
-      options
+      { options }
     );
     const account = new PasskeyAccount<Metadata>(json.pubkey, signer);
     return super.loadCommonFields(account, json);
@@ -160,7 +166,7 @@ export class PasskeyAccount<Metadata extends unknown = unknown> extends BaseAcco
     identity: PasskeyIdentityResult,
     options?: PasskeyIdentityOptions
   ): PasskeyAccount<Metadata> {
-    const signer = new PasskeySigner(identity.record, identity.secretKey, options);
+    const signer = new PasskeySigner(identity.record, { key: identity.secretKey, options });
     return new PasskeyAccount<Metadata>(identity.pubkey, signer);
   }
 
@@ -168,7 +174,7 @@ export class PasskeyAccount<Metadata extends unknown = unknown> extends BaseAcco
     record: PasskeyIdentityRecord,
     options?: PasskeyIdentityOptions
   ): PasskeyAccount<Metadata> {
-    const signer = new PasskeySigner(record, undefined, options);
+    const signer = new PasskeySigner(record, { options });
     return new PasskeyAccount<Metadata>(record.pubkey, signer);
   }
 }

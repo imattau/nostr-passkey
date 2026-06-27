@@ -38,6 +38,7 @@ Prompts the browser to verify the passkey (via FaceID/TouchID/PIN) and decrypts 
   - `record?: PasskeyIdentityRecord` - Optional custom record to decrypt. If omitted, the function reads from `localStorage`.
   - `options?: PasskeyIdentityOptions`
 - **Returns**: `Promise<PasskeyIdentityResult>`
+- **Note**: If the stored record is in v1 format, unlock will automatically migrate it to v2 (with a per-record random salt) and persist the updated record.
 
 #### `exportPasskeyIdentityAsNsec(record?, options?)`
 Decrypts the stored Nostr key (requiring biometric authorization) and returns it encoded as a standard Bech32 `nsec` string.
@@ -71,7 +72,9 @@ Adapter bindings for applications leveraging the `applesauce-accounts` framework
 
 #### `PasskeySigner`
 Implements the `ISigner` interface from `applesauce-signers`. Holds the decrypted key securely in-memory.
-- **Constructor**: `new PasskeySigner(record, key?, options?)`
+- **Constructor**: `new PasskeySigner(record, opts?)`
+  - `record: PasskeyIdentityRecord` - The stored credential record.
+  - `opts?: PasskeySignerOptions` (see [PasskeySignerOptions](#passkeysigneroptions) below)
 - **Properties**:
   - `unlocked: boolean` - Returns `true` if the key is decrypted in memory.
 - **Methods**:
@@ -102,13 +105,25 @@ Reads the stored credential and returns a `PasskeyAccount` instance (locked by d
 ## 3. Types
 
 ### `PasskeyIdentityRecord`
+A stored passkey identity. v2 records include a per-device random salt for stronger key derivation.
 ```typescript
-interface PasskeyIdentityRecord {
+interface PasskeyIdentityRecordV1 {
   version: 1;
   credentialId: string;   // Base64Url raw identifier
   encryptedNsec: string;  // NIP-44 encrypted private key hex
   pubkey: string;         // Plaintext public key hex
 }
+
+interface PasskeyIdentityRecordV2 {
+  version: 2;
+  credentialId: string;   // Base64Url raw identifier
+  encryptedNsec: string;  // AES-GCM encrypted private key hex
+  pubkey: string;         // Plaintext public key hex
+  salt: string;           // Per-record random salt (Base64Url)
+  rpId: string;           // Relaying Party ID used at enrollment
+}
+
+type PasskeyIdentityRecord = PasskeyIdentityRecordV1 | PasskeyIdentityRecordV2;
 ```
 
 ### `PasskeyIdentityOptions`
@@ -120,7 +135,27 @@ interface PasskeyIdentityOptions {
   userName?: string;       // WebAuthn credential name user identifier
   displayName?: string;    // WebAuthn display name
   storageKey?: string;     // Custom localStorage key
-  prfSalt?: Uint8Array;    // Custom 32-byte salt for PRF derivation
-  prfSaltString?: string;  // Custom salt string (default: "nostr-passkey-nsec-v1")
+  storage?: PasskeyStorage; // Custom storage backend (default: localStorage)
+  autoLockTimeout?: number; // Milliseconds after which the in-memory key is zeroed
+}
+```
+
+### `PasskeyStorage`
+Custom storage adapter for non-browser environments (React Native, etc.):
+```typescript
+interface PasskeyStorage {
+  getItem(key: string): string | null;
+  setItem(key: string, value: string): void;
+  removeItem(key: string): void;
+}
+```
+
+### `PasskeySignerOptions`
+Options bag for the `PasskeySigner` constructor:
+```typescript
+interface PasskeySignerOptions {
+  key?: Uint8Array;              // Pre-decrypted key (skips biometric prompt)
+  options?: PasskeyIdentityOptions; // Identity options (storage, autoLockTimeout, etc.)
+  autoLockTimeoutMs?: number;    // Explicit auto-lock timeout (overrides options.autoLockTimeout)
 }
 ```
